@@ -58,9 +58,11 @@ if uploaded_file:
     X_new = df_input[feature_cols]
     df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
     df_input['place_probability'] = df_input['win_probability'] * 1.6
+    df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
+    df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
 
     st.subheader("Predicted Results from CSV")
-    st.dataframe(df_input[['Horse', 'win_probability', 'place_probability']].sort_values(by='win_probability', ascending=False))
+    st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
 
 else:
     num_horses = st.number_input("Number of horses", min_value=2, max_value=12, value=3)
@@ -99,6 +101,9 @@ else:
         X_new = df_input[feature_cols]
         df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
         df_input['place_probability'] = df_input['win_probability'] * 1.6
+        df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
+        df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
 
         st.subheader("Predicted Results")
-        st.dataframe(df_input[['Horse', 'win_probability', 'place_probability']].sort_values(by='win_probability', ascending=False))
+        st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+
