@@ -41,35 +41,13 @@ pipeline.fit(X, y)
 
 # Streamlit App
 st.title("Horse Racing Win Predictor")
-st.write("Enter up to 12 horses with race data below:")
+st.write("Upload a race card CSV or enter horse data manually:")
 
-num_horses = st.number_input("Number of horses", min_value=2, max_value=12, value=3)
+# CSV Upload Section
+uploaded_file = st.file_uploader("Upload CSV file with horse race data", type=["csv"])
 
-input_data = []
-for i in range(num_horses):
-    st.subheader(f"Horse {i+1}")
-    horse = st.text_input(f"Name of Horse {i+1}", key=f"name_{i}")
-    or_rating = st.number_input(f"Official Rating (OR) - {horse}", key=f"or_{i}")
-    rpr_last = st.number_input(f"RPR Last Run - {horse}", key=f"rprl_{i}")
-    rpr_prev = st.number_input(f"RPR Previous Run - {horse}", key=f"rprp_{i}")
-    weight = st.number_input(f"Weight (lbs) - {horse}", key=f"wt_{i}")
-    days_last = st.number_input(f"Days Since Last Run - {horse}", key=f"days_{i}")
-    starts = st.number_input(f"Course Starts - {horse}", key=f"starts_{i}")
-    wins = st.number_input(f"Course Wins - {horse}", key=f"wins_{i}")
-
-    input_data.append({
-        'Horse': horse,
-        'OR': or_rating,
-        'RPR_last': rpr_last,
-        'RPR_prev': rpr_prev,
-        'Weight_lbs': weight,
-        'Days_last': days_last,
-        'Course_starts': starts,
-        'Course_wins': wins
-    })
-
-if st.button("Predict Win Chances"):
-    df_input = pd.DataFrame(input_data)
+if uploaded_file:
+    df_input = pd.read_csv(uploaded_file)
     df_input['or_diff'] = df_input['OR'] - df_input['OR'].mean()
     df_input['rpr_trend'] = df_input['RPR_last'] - df_input['RPR_prev']
     df_input['weight_adj'] = (df_input['Weight_lbs'] - 126) / 8
@@ -79,7 +57,48 @@ if st.button("Predict Win Chances"):
 
     X_new = df_input[feature_cols]
     df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
-    df_input['place_probability'] = df_input['win_probability'] * 1.6  # simple multiplier
+    df_input['place_probability'] = df_input['win_probability'] * 1.6
 
-    st.subheader("Predicted Results")
+    st.subheader("Predicted Results from CSV")
     st.dataframe(df_input[['Horse', 'win_probability', 'place_probability']].sort_values(by='win_probability', ascending=False))
+
+else:
+    num_horses = st.number_input("Number of horses", min_value=2, max_value=12, value=3)
+    input_data = []
+    for i in range(num_horses):
+        st.subheader(f"Horse {i+1}")
+        horse = st.text_input(f"Name of Horse {i+1}", key=f"name_{i}")
+        or_rating = st.number_input(f"Official Rating (OR) - {horse}", key=f"or_{i}")
+        rpr_last = st.number_input(f"RPR Last Run - {horse}", key=f"rprl_{i}")
+        rpr_prev = st.number_input(f"RPR Previous Run - {horse}", key=f"rprp_{i}")
+        weight = st.number_input(f"Weight (lbs) - {horse}", key=f"wt_{i}")
+        days_last = st.number_input(f"Days Since Last Run - {horse}", key=f"days_{i}")
+        starts = st.number_input(f"Course Starts - {horse}", key=f"starts_{i}")
+        wins = st.number_input(f"Course Wins - {horse}", key=f"wins_{i}")
+
+        input_data.append({
+            'Horse': horse,
+            'OR': or_rating,
+            'RPR_last': rpr_last,
+            'RPR_prev': rpr_prev,
+            'Weight_lbs': weight,
+            'Days_last': days_last,
+            'Course_starts': starts,
+            'Course_wins': wins
+        })
+
+    if st.button("Predict Win Chances"):
+        df_input = pd.DataFrame(input_data)
+        df_input['or_diff'] = df_input['OR'] - df_input['OR'].mean()
+        df_input['rpr_trend'] = df_input['RPR_last'] - df_input['RPR_prev']
+        df_input['weight_adj'] = (df_input['Weight_lbs'] - 126) / 8
+        df_input['course_sr'] = df_input['Course_wins'] / df_input['Course_starts'].replace(0, np.nan)
+        df_input['course_sr'] = df_input['course_sr'].fillna(0)
+        df_input['days_log'] = np.log1p(df_input['Days_last'])
+
+        X_new = df_input[feature_cols]
+        df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
+        df_input['place_probability'] = df_input['win_probability'] * 1.6
+
+        st.subheader("Predicted Results")
+        st.dataframe(df_input[['Horse', 'win_probability', 'place_probability']].sort_values(by='win_probability', ascending=False))
