@@ -106,4 +106,3 @@ else:
 
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
-
