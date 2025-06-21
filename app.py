@@ -16,6 +16,10 @@ data = {
     'Days_last': [14, 21, 35, 7, 60, 12],
     'Course_starts': [2, 3, 1, 0, 1, 2],
     'Course_wins': [1, 0, 0, 0, 1, 0],
+    'Distance_wins': [1, 1, 0, 0, 0, 0],
+    'Draw': [1, 2, 3, 4, 5, 6],
+    'Going_pref': ['Good', 'Firm', 'Good', 'Soft', 'Good', 'Firm'],
+    'Headgear': ['None', 'Blinkers', 'Hood', 'None', 'Visor', 'None'],
     'Winner': [1, 0, 0, 0, 1, 0]
 }
 
@@ -26,8 +30,11 @@ df['weight_adj'] = (df['Weight_lbs'] - 126) / 8
 df['course_sr'] = df['Course_wins'] / df['Course_starts'].replace(0, np.nan)
 df['course_sr'] = df['course_sr'].fillna(0)
 df['days_log'] = np.log1p(df['Days_last'])
+df['draw_scaled'] = (df['Draw'] - df['Draw'].mean()) / df['Draw'].std()
+df['distance_success'] = df['Distance_wins'] / (df['Distance_wins'] + 1)
+df['going_is_good'] = (df['Going_pref'] == 'Good').astype(int)
 
-feature_cols = ['or_diff', 'rpr_trend', 'weight_adj', 'course_sr', 'days_log']
+feature_cols = ['or_diff', 'rpr_trend', 'weight_adj', 'course_sr', 'days_log', 'draw_scaled', 'distance_success', 'going_is_good']
 X = df[feature_cols]
 y = df['Winner']
 
@@ -54,6 +61,9 @@ if uploaded_file:
     df_input['course_sr'] = df_input['Course_wins'] / df_input['Course_starts'].replace(0, np.nan)
     df_input['course_sr'] = df_input['course_sr'].fillna(0)
     df_input['days_log'] = np.log1p(df_input['Days_last'])
+    df_input['draw_scaled'] = (df_input['Draw'] - df_input['Draw'].mean()) / df_input['Draw'].std()
+    df_input['distance_success'] = df_input['Distance_wins'] / (df_input['Distance_wins'] + 1)
+    df_input['going_is_good'] = (df_input['Going_pref'] == 'Good').astype(int)
 
     X_new = df_input[feature_cols]
     df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
@@ -77,6 +87,10 @@ else:
         days_last = st.number_input(f"Days Since Last Run - {horse}", key=f"days_{i}")
         starts = st.number_input(f"Course Starts - {horse}", key=f"starts_{i}")
         wins = st.number_input(f"Course Wins - {horse}", key=f"wins_{i}")
+        dist_wins = st.number_input(f"Distance Wins - {horse}", key=f"distwins_{i}")
+        draw = st.number_input(f"Draw (Stall) - {horse}", key=f"draw_{i}")
+        going_pref = st.selectbox(f"Going Preference - {horse}", ["Good", "Firm", "Soft", "Heavy"], key=f"going_{i}")
+        headgear = st.text_input(f"Headgear - {horse}", key=f"gear_{i}")
 
         input_data.append({
             'Horse': horse,
@@ -86,7 +100,11 @@ else:
             'Weight_lbs': weight,
             'Days_last': days_last,
             'Course_starts': starts,
-            'Course_wins': wins
+            'Course_wins': wins,
+            'Distance_wins': dist_wins,
+            'Draw': draw,
+            'Going_pref': going_pref,
+            'Headgear': headgear
         })
 
     if st.button("Predict Win Chances"):
@@ -97,6 +115,9 @@ else:
         df_input['course_sr'] = df_input['Course_wins'] / df_input['Course_starts'].replace(0, np.nan)
         df_input['course_sr'] = df_input['course_sr'].fillna(0)
         df_input['days_log'] = np.log1p(df_input['Days_last'])
+        df_input['draw_scaled'] = (df_input['Draw'] - df_input['Draw'].mean()) / df_input['Draw'].std()
+        df_input['distance_success'] = df_input['Distance_wins'] / (df_input['Distance_wins'] + 1)
+        df_input['going_is_good'] = (df_input['Going_pref'] == 'Good').astype(int)
 
         X_new = df_input[feature_cols]
         df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
@@ -106,3 +127,4 @@ else:
 
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+
