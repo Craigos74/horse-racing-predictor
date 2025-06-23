@@ -130,7 +130,7 @@ if url_input and st.button("Fetch Race Data"):
         df_input = preprocess_race_data(df_input)
     else:
         df_input = preprocess_race_data(df_input)
-    X_new = pd.DataFrame()
+    X_new = pd.DataFrame(columns=feature_cols)
     if not df_input.empty:
         missing_features = [col for col in feature_cols if col not in df_input.columns]
         if missing_features:
@@ -143,12 +143,7 @@ if url_input and st.button("Fetch Race Data"):
             df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
             st.subheader("Predicted Results from URL")
             st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
-    df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
-    df_input['place_probability'] = df_input['win_probability'] * 1.6
-    df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
-    df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
-    st.subheader("Predicted Results from URL")
-    st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+    
 else:
     st.error("Race data could not be processed due to missing or invalid features.")
 
@@ -214,6 +209,5 @@ else:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
-
 
 
