@@ -123,12 +123,13 @@ if url_input and url_fetch:
         for col in required_cols:
             if col not in df_input.columns:
                 default_val = 75 if 'OR' in col or 'RPR' in col else 1
-                if col in ['Weight_lbs']: default_val = 126
-                if col in ['Draw']: default_val = 5
-                if col in ['Going_pref']: default_val = 'Good'
-                if col in ['Prize']: default_val = 20000
-                if col in ['FieldSize']: default_val = len(df_input)
+                if col == 'Weight_lbs': default_val = 126
+                elif col == 'Draw': default_val = 5
+                elif col == 'Going_pref': default_val = 'Good'
+                elif col == 'Prize': default_val = 20000
+                elif col == 'FieldSize': default_val = len(df_input)
                 df_input[col] = default_val
+        df_input = df_input.fillna(default_val)
         df_input = preprocess_race_data(df_input)
     else:
         df_input = preprocess_race_data(df_input)
@@ -210,4 +211,5 @@ if not url_input and not uploaded_file:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+
 
