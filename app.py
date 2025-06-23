@@ -148,14 +148,14 @@ if url_input and url_fetch:
             st.success("Race data processed successfully.")
             st.write("Preview of processed data:")
             st.dataframe(df_input.head())
-                except Exception as e:
+        except Exception as e:
             st.error(f"Error preprocessing race data: {e}")
 
                 if not df_input.empty:
             missing_features = [col for col in feature_cols if col not in df_input.columns]
-                                    if missing_features:
+                        if missing_features:
                 st.error(f"Missing features in data: {missing_features}. Prediction skipped.")
-                                                else:
+            else:
                 X_new = df_input[feature_cols]
             df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
             df_input['place_probability'] = df_input['win_probability'] * 1.6
