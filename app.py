@@ -33,7 +33,12 @@ def scrape_race_data(url):
     for row in runners:
         try:
             horse = row.select_one(".RC-runnerName").get_text(strip=True)
-            or_tag = row.select_one(".RC-horseInfo span:contains('OR')")
+            or_tags = row.select(".RC-horseInfo span")
+or_val = 75
+for span in or_tags:
+    if 'OR' in span.get_text():
+        or_val = int(span.get_text().split()[-1])
+        break
             or_val = int(or_tag.get_text(strip=True).split()[-1]) if or_tag else 75
             weight = row.select_one(".RC-runnerWgt")
             weight_lbs = int(weight.get_text(strip=True).split()[0]) if weight else 126
@@ -66,7 +71,43 @@ def scrape_race_data(url):
     return df_scraped
 
 # Sample historical data to train the model
-# (unchanged ...)
+sample_data = {
+    'race_id': [1, 1, 1, 2, 2, 2],
+    'horse': ['Horse A', 'Horse B', 'Horse C', 'Horse D', 'Horse E', 'Horse F'],
+    'OR': [85, 82, 78, 70, 68, 65],
+    'RPR_last': [88, 84, 77, 72, 70, 66],
+    'RPR_prev': [86, 83, 76, 71, 69, 65],
+    'Weight_lbs': [130, 128, 126, 122, 121, 120],
+    'Days_last': [14, 21, 35, 7, 60, 12],
+    'Course_starts': [2, 3, 1, 0, 1, 2],
+    'Course_wins': [1, 0, 0, 0, 1, 0],
+    'Distance_wins': [1, 1, 0, 0, 0, 0],
+    'Draw': [1, 2, 3, 4, 5, 6],
+    'Going_pref': ['Good', 'Firm', 'Good', 'Soft', 'Good', 'Firm'],
+    'Headgear': ['None', 'Blinkers', 'Hood', 'None', 'Visor', 'None'],
+    'Prize': [10000, 10000, 10000, 5000, 5000, 5000],
+    'FieldSize': [8, 8, 8, 6, 6, 6],
+    'Trainer': ['Trainer A', 'Trainer B', 'Trainer A', 'Trainer C', 'Trainer D', 'Trainer E'],
+    'Jockey': ['Jockey A', 'Jockey B', 'Jockey A', 'Jockey C', 'Jockey D', 'Jockey E'],
+    'Winner': [1, 0, 0, 0, 1, 0]
+}
+
+df = pd.DataFrame(sample_data)
+df = preprocess_race_data(df)
+
+feature_cols = [
+    'or_diff', 'rpr_trend', 'weight_adj', 'course_sr', 'days_log',
+    'draw_scaled', 'distance_success', 'going_is_good', 'prize_log', 'field_scaled'
+]
+
+X = df[feature_cols]
+y = df['Winner']
+
+pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('model', LogisticRegression())
+])
+pipeline.fit(X, y)
 
 # Streamlit App
 st.title("Horse Racing Win Predictor")
