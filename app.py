@@ -7,6 +7,9 @@ from sklearn.pipeline import Pipeline
 import requests
 from bs4 import BeautifulSoup
 
+# --------------------------
+# Data Preprocessing Function
+# --------------------------
 def preprocess_race_data(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df['or_diff'] = df['OR'] - df['OR'].mean()
@@ -22,10 +25,12 @@ def preprocess_race_data(df: pd.DataFrame) -> pd.DataFrame:
     df['field_scaled'] = df['FieldSize'] / df['FieldSize'].max()
     return df
 
+# --------------------------
+# Scraper Function
+# --------------------------
 def scrape_race_data(url):
     response = requests.get(url)
     soup = BeautifulSoup(response.content, 'html.parser')
-
     runners = soup.select(".RC-runnerRow")
     horses = []
     field_size = len(runners)
@@ -66,10 +71,11 @@ def scrape_race_data(url):
             print(f"Error parsing runner: {e}")
             continue
 
-    df_scraped = pd.DataFrame(horses)
-    return df_scraped
+    return pd.DataFrame(horses)
 
-# Sample historical data to train the model
+# --------------------------
+# Sample Training Data
+# --------------------------
 sample_data = {
     'race_id': [1, 1, 1, 2, 2, 2],
     'horse': ['Horse A', 'Horse B', 'Horse C', 'Horse D', 'Horse E', 'Horse F'],
@@ -90,7 +96,6 @@ sample_data = {
     'Jockey': ['Jockey A', 'Jockey B', 'Jockey A', 'Jockey C', 'Jockey D', 'Jockey E'],
     'Winner': [1, 0, 0, 0, 1, 0]
 }
-
 df = pd.DataFrame(sample_data)
 df = preprocess_race_data(df)
 
@@ -98,7 +103,6 @@ feature_cols = [
     'or_diff', 'rpr_trend', 'weight_adj', 'course_sr', 'days_log',
     'draw_scaled', 'distance_success', 'going_is_good', 'prize_log', 'field_scaled'
 ]
-
 X = df[feature_cols]
 y = df['Winner']
 
@@ -108,11 +112,13 @@ pipeline = Pipeline([
 ])
 pipeline.fit(X, y)
 
-# Streamlit App
+# --------------------------
+# Streamlit App UI
+# --------------------------
 st.title("Horse Racing Win Predictor")
 st.write("Upload a race card CSV, enter data manually, or fetch race by URL:")
 
-url_input = st.text_input("Paste racecard URL to fetch data (e.g. AtTheRaces or IrishRacing):")
+url_input = st.text_input("Paste racecard URL to fetch data:")
 url_fetch = st.button("Fetch Race Data")
 
 if url_input and url_fetch:
@@ -120,52 +126,50 @@ if url_input and url_fetch:
     if df_input.empty:
         st.error("No runners found – check the race URL or scraper.")
     else:
-        required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
+        required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins',
+                         'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
+
         if not required_cols.issubset(df_input.columns):
             st.warning("Some fields are missing. Please review sidebar inputs to fill them.")
             st.sidebar.markdown("### Fill Missing Fields")
-            for col in required_cols:
-                if col not in df_input.columns:
-                    if col in ['OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Prize', 'FieldSize']:
-                        value = st.sidebar.number_input(f"Enter value for {col}", value=75 if 'RPR' in col or col == 'OR' else 1)
-                    elif col == 'Going_pref':
-                        value = st.sidebar.selectbox(f"Select {col}", ['Good', 'Firm', 'Soft', 'Heavy'])
-                    else:
-                        value = 'Unknown'
-                    df_input[col] = value
-        try:
-            df_input = preprocess_race_data(df_input)
-            st.success("Fallback data processed successfully.")
-            st.write("Preview of processed data:")
-            st.dataframe(df_input.head())
-        except Exception as e:
-            st.error(f"Error processing fallback race data: {e}")
-            df_input = pd.DataFrame()
+            for col in required_cols - set(df_input.columns):
+                if col in ['OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last',
+                           'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Prize', 'FieldSize']:
+                    default_val = 75 if 'RPR' in col or col == 'OR' else 1
+                    df_input[col] = st.sidebar.number_input(f"{col}", value=default_val)
+                elif col == 'Going_pref':
+                    df_input[col] = st.sidebar.selectbox("Going Preference", ['Good', 'Firm', 'Soft', 'Heavy'])
+                else:
+                    df_input[col] = 'Unknown'
 
-        # No else block needed here as data already processed above
         try:
             df_input = preprocess_race_data(df_input)
             st.success("Race data processed successfully.")
-            st.write("Preview of processed data:")
             st.dataframe(df_input.head())
-                except Exception as e:
+        except Exception as e:
             st.error(f"Error preprocessing race data: {e}")
+            df_input = pd.DataFrame()
 
-                        if not df_input.empty:
+        if not df_input.empty:
             missing_features = [col for col in feature_cols if col not in df_input.columns]
-                                    if missing_features:
+            if missing_features:
                 st.error(f"Missing features in data: {missing_features}. Prediction skipped.")
-                        else:
-                                df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
-            df_input['place_probability'] = df_input['win_probability'] * 1.6
-            df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
-            df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
-            st.subheader("Predicted Results from URL")
-            st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
-    
+            else:
+                try:
+                    X_new = df_input[feature_cols]
+                    df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
+                    df_input['place_probability'] = df_input['win_probability'] * 1.6
+                    df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
+                    df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
+                    st.subheader("Predicted Results from URL")
+                    st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%',
+                                           'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+                except Exception as e:
+                    st.error(f"Prediction error: {e}")
 
-
+# --------------------------
 # CSV Upload Section
+# --------------------------
 uploaded_file = st.file_uploader("Upload CSV file with horse race data", type=["csv"])
 
 if uploaded_file:
@@ -177,53 +181,5 @@ if uploaded_file:
     df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
     df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
     st.subheader("Predicted Results from CSV")
-    st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
-
-# Manual Entry Section
-if not url_input and not uploaded_file:
-    num_horses = st.number_input("Number of horses", min_value=2, max_value=12, value=3)
-    input_data = []
-    for i in range(num_horses):
-        st.subheader(f"Horse {i+1}")
-        horse = st.text_input(f"Name of Horse {i+1}", key=f"name_{i}")
-        or_rating = st.number_input(f"Official Rating (OR) - {horse}", key=f"or_{i}")
-        rpr_last = st.number_input(f"RPR Last Run - {horse}", key=f"rprl_{i}")
-        rpr_prev = st.number_input(f"RPR Previous Run - {horse}", key=f"rprp_{i}")
-        weight = st.number_input(f"Weight (lbs) - {horse}", key=f"wt_{i}")
-        days_last = st.number_input(f"Days Since Last Run - {horse}", key=f"days_{i}")
-        starts = st.number_input(f"Course Starts - {horse}", key=f"starts_{i}")
-        wins = st.number_input(f"Course Wins - {horse}", key=f"wins_{i}")
-        dist_wins = st.number_input(f"Distance Wins - {horse}", key=f"distwins_{i}")
-        draw = st.number_input(f"Draw (Stall) - {horse}", key=f"draw_{i}")
-        going_pref = st.selectbox(f"Going Preference - {horse}", ["Good", "Firm", "Soft", "Heavy"], key=f"going_{i}")
-        headgear = st.text_input(f"Headgear - {horse}", key=f"gear_{i}")
-        prize = st.number_input(f"Prize Money - {horse}", key=f"prize_{i}")
-        field_size = st.number_input(f"Field Size - {horse}", key=f"field_{i}")
-
-        input_data.append({
-            'Horse': horse,
-            'OR': or_rating,
-            'RPR_last': rpr_last,
-            'RPR_prev': rpr_prev,
-            'Weight_lbs': weight,
-            'Days_last': days_last,
-            'Course_starts': starts,
-            'Course_wins': wins,
-            'Distance_wins': dist_wins,
-            'Draw': draw,
-            'Going_pref': going_pref,
-            'Headgear': headgear,
-            'Prize': prize,
-            'FieldSize': field_size
-        })
-
-    if st.button("Predict Win Chances"):
-        df_input = pd.DataFrame(input_data)
-        df_input = preprocess_race_data(df_input)
-        X_new = df_input[feature_cols]
-        df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
-        df_input['place_probability'] = df_input['win_probability'] * 1.6
-        df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
-        df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
-        st.subheader("Predicted Results")
-        st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+    st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%',
+                           'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
