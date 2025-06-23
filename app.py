@@ -120,16 +120,27 @@ if url_input and url_fetch:
     required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
     if not required_cols.issubset(df_input.columns):
         st.warning("Some fields are missing. Applying fallback default values.")
+        default_val = 1  # general fallback default
         for col in required_cols:
             if col not in df_input.columns:
-                default_val = 75 if 'OR' in col or 'RPR' in col else 1
-                if col == 'Weight_lbs': default_val = 126
-                elif col == 'Draw': default_val = 5
-                elif col == 'Going_pref': default_val = 'Good'
-                elif col == 'Prize': default_val = 20000
-                elif col == 'FieldSize': default_val = len(df_input)
+                if 'OR' in col or 'RPR' in col:
+                    default_val = 75
+                elif col == 'Weight_lbs':
+                    default_val = 126
+                elif col == 'Draw':
+                    default_val = 5
+                elif col == 'Going_pref':
+                    default_val = 'Good'
+                elif col == 'Prize':
+                    default_val = 20000
+                elif col == 'FieldSize':
+                    default_val = len(df_input)
                 df_input[col] = default_val
-        df_input = df_input.fillna(default_val)
+        try:
+            df_input = preprocess_race_data(df_input)
+        except Exception as e:
+            st.error(f"Error processing fallback race data: {e}")
+            df_input = pd.DataFrame()
         df_input = preprocess_race_data(df_input)
     else:
         df_input = preprocess_race_data(df_input)
