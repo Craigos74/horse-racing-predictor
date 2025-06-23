@@ -117,8 +117,11 @@ url_fetch = st.button("Fetch Race Data")
 
 if url_input and url_fetch:
     df_input = scrape_race_data(url_input)
+    if df_input.empty:
+        st.error("No runners found – check the race URL or scraper.")
+    else:
     required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
-    if not required_cols.issubset(df_input.columns):
+            if not required_cols.issubset(df_input.columns):
         st.warning("Some fields are missing. Applying fallback default values.")
         default_val = 1  # general fallback default
         for col in required_cols:
@@ -144,10 +147,10 @@ if url_input and url_fetch:
         except Exception as e:
             st.error(f"Error processing fallback race data: {e}")
             df_input = pd.DataFrame()
-    else:
-        df_input = preprocess_race_data(df_input)
-    X_new = pd.DataFrame(columns=feature_cols)
-    if not df_input.empty:
+            else:
+            df_input = preprocess_race_data(df_input)
+            X_new = pd.DataFrame(columns=feature_cols)
+            if not df_input.empty:
         missing_features = [col for col in feature_cols if col not in df_input.columns]
         if missing_features:
             st.error(f"Missing features in data: {missing_features}. Prediction skipped.")
@@ -224,4 +227,5 @@ if not url_input and not uploaded_file:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+
 
