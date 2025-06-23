@@ -113,7 +113,9 @@ st.title("Horse Racing Win Predictor")
 st.write("Upload a race card CSV, enter data manually, or fetch race by URL:")
 
 url_input = st.text_input("Paste racecard URL to fetch data (e.g. AtTheRaces or IrishRacing):")
-if url_input and st.button("Fetch Race Data"):
+url_fetch = st.button("Fetch Race Data")
+
+if url_input and url_fetch:
     df_input = scrape_race_data(url_input)
     required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
     if not required_cols.issubset(df_input.columns):
@@ -144,13 +146,12 @@ if url_input and st.button("Fetch Race Data"):
             st.subheader("Predicted Results from URL")
             st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
     
-else:
-    st.error("Race data could not be processed due to missing or invalid features.")
+
 
 # CSV Upload Section
 uploaded_file = st.file_uploader("Upload CSV file with horse race data", type=["csv"])
 
-elif uploaded_file:
+if uploaded_file:
     df_input = pd.read_csv(uploaded_file)
     df_input = preprocess_race_data(df_input)
     X_new = df_input[feature_cols]
@@ -162,7 +163,7 @@ elif uploaded_file:
     st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
 
 # Manual Entry Section
-elif not url_input:
+if not url_input and not uploaded_file:
     num_horses = st.number_input("Number of horses", min_value=2, max_value=12, value=3)
     input_data = []
     for i in range(num_horses):
@@ -209,5 +210,4 @@ elif not url_input:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
-
 
