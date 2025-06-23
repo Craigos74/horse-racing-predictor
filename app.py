@@ -123,8 +123,8 @@ if url_input and url_fetch:
         required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
         if not required_cols.issubset(df_input.columns):
             st.warning("Some fields are missing. Please review sidebar inputs to fill them.")
-            st.sidebar.markdown("### Fill Missing Fields")  # general fallback default
-                    for col in required_cols:
+            st.sidebar.markdown("### Fill Missing Fields")
+            for col in required_cols:
                 if col not in df_input.columns:
                     if col in ['OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Prize', 'FieldSize']:
                         value = st.sidebar.number_input(f"Enter value for {col}", value=75 if 'RPR' in col or col == 'OR' else 1)
@@ -141,7 +141,7 @@ if url_input and url_fetch:
         except Exception as e:
             st.error(f"Error processing fallback race data: {e}")
             df_input = pd.DataFrame()
-                    else:
+                            else:
             try:
             df_input = preprocess_race_data(df_input)
             st.success("Race data processed successfully.")
@@ -151,12 +151,12 @@ if url_input and url_fetch:
             st.error(f"Error preprocessing race data: {e}")
             df_input = pd.DataFrame()
 
-                if not df_input.empty:
-            missing_features = [col for col in feature_cols if col not in df_input.columns]
-        if missing_features:
-            st.error(f"Missing features in data: {missing_features}. Prediction skipped.")
-        else:
-            X_new = df_input[feature_cols]
+                            if not df_input.empty:
+                missing_features = [col for col in feature_cols if col not in df_input.columns]
+                        if missing_features:
+                    st.error(f"Missing features in data: {missing_features}. Prediction skipped.")
+                        else:
+                    X_new = df_input[feature_cols]
             df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
             df_input['place_probability'] = df_input['win_probability'] * 1.6
             df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
@@ -228,6 +228,7 @@ if not url_input and not uploaded_file:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+
 
 
 
