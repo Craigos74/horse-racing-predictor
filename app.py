@@ -120,8 +120,8 @@ if url_input and url_fetch:
     if df_input.empty:
         st.error("No runners found – check the race URL or scraper.")
     else:
-    required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
-            if not required_cols.issubset(df_input.columns):
+        required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
+        if not required_cols.issubset(df_input.columns):
         st.warning("Some fields are missing. Applying fallback default values.")
         default_val = 1  # general fallback default
         for col in required_cols:
@@ -148,9 +148,16 @@ if url_input and url_fetch:
             st.error(f"Error processing fallback race data: {e}")
             df_input = pd.DataFrame()
             else:
+        try:
             df_input = preprocess_race_data(df_input)
-            X_new = pd.DataFrame(columns=feature_cols)
-            if not df_input.empty:
+            st.success("Race data processed successfully.")
+            st.write("Preview of processed data:")
+            st.dataframe(df_input.head())
+        except Exception as e:
+            st.error(f"Error preprocessing race data: {e}")
+            df_input = pd.DataFrame()
+
+        if not df_input.empty:
         missing_features = [col for col in feature_cols if col not in df_input.columns]
         if missing_features:
             st.error(f"Missing features in data: {missing_features}. Prediction skipped.")
