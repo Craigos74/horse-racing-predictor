@@ -118,9 +118,11 @@ if url_input and st.button("Fetch Race Data"):
     required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
     if not required_cols.issubset(df_input.columns):
         st.error("Scraped data is missing some required fields. Please check the race URL or try a different one.")
+        df_input = pd.DataFrame()  # Avoid further errors
     else:
         df_input = preprocess_race_data(df_input)
-    X_new = df_input[feature_cols]
+    if not df_input.empty:
+        X_new = df_input[feature_cols]
     df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
     df_input['place_probability'] = df_input['win_probability'] * 1.6
     df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
@@ -190,5 +192,6 @@ else:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+
 
 
