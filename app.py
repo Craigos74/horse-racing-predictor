@@ -5,6 +5,21 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
+def preprocess_race_data(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df['or_diff'] = df['OR'] - df['OR'].mean()
+    df['rpr_trend'] = df['RPR_last'] - df['RPR_prev']
+    df['weight_adj'] = (df['Weight_lbs'] - 126) / 8
+    df['course_sr'] = df['Course_wins'] / df['Course_starts'].replace(0, np.nan)
+    df['course_sr'] = df['course_sr'].fillna(0)
+    df['days_log'] = np.log1p(df['Days_last'])
+    df['draw_scaled'] = (df['Draw'] - df['Draw'].mean()) / df['Draw'].std()
+    df['distance_success'] = df['Distance_wins'] / (df['Distance_wins'] + 1)
+    df['going_is_good'] = (df['Going_pref'] == 'Good').astype(int)
+    df['prize_log'] = np.log1p(df['Prize'])
+    df['field_scaled'] = df['FieldSize'] / df['FieldSize'].max()
+    return df
+
 # Sample historical data to train the model
 data = {
     'race_id': [1, 1, 1, 2, 2, 2],
@@ -28,17 +43,7 @@ data = {
 }
 
 df = pd.DataFrame(data)
-df['or_diff'] = df['OR'] - df.groupby('race_id')['OR'].transform('mean')
-df['rpr_trend'] = df['RPR_last'] - df['RPR_prev']
-df['weight_adj'] = (df['Weight_lbs'] - 126) / 8
-df['course_sr'] = df['Course_wins'] / df['Course_starts'].replace(0, np.nan)
-df['course_sr'] = df['course_sr'].fillna(0)
-df['days_log'] = np.log1p(df['Days_last'])
-df['draw_scaled'] = (df['Draw'] - df['Draw'].mean()) / df['Draw'].std()
-df['distance_success'] = df['Distance_wins'] / (df['Distance_wins'] + 1)
-df['going_is_good'] = (df['Going_pref'] == 'Good').astype(int)
-df['prize_log'] = np.log1p(df['Prize'])
-df['field_scaled'] = df['FieldSize'] / df['FieldSize'].max()
+df = preprocess_race_data(df)
 
 feature_cols = [
     'or_diff', 'rpr_trend', 'weight_adj', 'course_sr', 'days_log',
@@ -64,17 +69,7 @@ uploaded_file = st.file_uploader("Upload CSV file with horse race data", type=["
 
 if uploaded_file:
     df_input = pd.read_csv(uploaded_file)
-    df_input['or_diff'] = df_input['OR'] - df_input['OR'].mean()
-    df_input['rpr_trend'] = df_input['RPR_last'] - df_input['RPR_prev']
-    df_input['weight_adj'] = (df_input['Weight_lbs'] - 126) / 8
-    df_input['course_sr'] = df_input['Course_wins'] / df_input['Course_starts'].replace(0, np.nan)
-    df_input['course_sr'] = df_input['course_sr'].fillna(0)
-    df_input['days_log'] = np.log1p(df_input['Days_last'])
-    df_input['draw_scaled'] = (df_input['Draw'] - df_input['Draw'].mean()) / df_input['Draw'].std()
-    df_input['distance_success'] = df_input['Distance_wins'] / (df_input['Distance_wins'] + 1)
-    df_input['going_is_good'] = (df_input['Going_pref'] == 'Good').astype(int)
-    df_input['prize_log'] = np.log1p(df_input['Prize'])
-    df_input['field_scaled'] = df_input['FieldSize'] / df_input['FieldSize'].max()
+    df_input = preprocess_race_data(df_input)
 
     X_new = df_input[feature_cols]
     df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
@@ -124,17 +119,7 @@ else:
 
     if st.button("Predict Win Chances"):
         df_input = pd.DataFrame(input_data)
-        df_input['or_diff'] = df_input['OR'] - df_input['OR'].mean()
-        df_input['rpr_trend'] = df_input['RPR_last'] - df_input['RPR_prev']
-        df_input['weight_adj'] = (df_input['Weight_lbs'] - 126) / 8
-        df_input['course_sr'] = df_input['Course_wins'] / df_input['Course_starts'].replace(0, np.nan)
-        df_input['course_sr'] = df_input['course_sr'].fillna(0)
-        df_input['days_log'] = np.log1p(df_input['Days_last'])
-        df_input['draw_scaled'] = (df_input['Draw'] - df_input['Draw'].mean()) / df_input['Draw'].std()
-        df_input['distance_success'] = df_input['Distance_wins'] / (df_input['Distance_wins'] + 1)
-        df_input['going_is_good'] = (df_input['Going_pref'] == 'Good').astype(int)
-        df_input['prize_log'] = np.log1p(df_input['Prize'])
-        df_input['field_scaled'] = df_input['FieldSize'] / df_input['FieldSize'].max()
+        df_input = preprocess_race_data(df_input)
 
         X_new = df_input[feature_cols]
         df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
@@ -144,5 +129,4 @@ else:
 
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
-
 
