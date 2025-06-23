@@ -138,6 +138,9 @@ if url_input and url_fetch:
                 df_input[col] = default_val
         try:
             df_input = preprocess_race_data(df_input)
+            st.success("Fallback data processed successfully.")
+            st.write("Preview of processed data:")
+            st.dataframe(df_input.head())
         except Exception as e:
             st.error(f"Error processing fallback race data: {e}")
             df_input = pd.DataFrame()
@@ -221,5 +224,4 @@ if not url_input and not uploaded_file:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
-
 
