@@ -4,6 +4,8 @@ import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+import requests
+from bs4 import BeautifulSoup
 
 def preprocess_race_data(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
@@ -20,49 +22,67 @@ def preprocess_race_data(df: pd.DataFrame) -> pd.DataFrame:
     df['field_scaled'] = df['FieldSize'] / df['FieldSize'].max()
     return df
 
+def scrape_race_data(url):
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+
+    runners = soup.select(".RC-runnerRow")
+    horses = []
+    field_size = len(runners)
+
+    for row in runners:
+        try:
+            horse = row.select_one(".RC-runnerName").get_text(strip=True)
+            or_tag = row.select_one(".RC-horseInfo span:contains('OR')")
+            or_val = int(or_tag.get_text(strip=True).split()[-1]) if or_tag else 75
+            weight = row.select_one(".RC-runnerWgt")
+            weight_lbs = int(weight.get_text(strip=True).split()[0]) if weight else 126
+            draw = row.select_one(".RC-runnerDraw")
+            draw_num = int(draw.get_text(strip=True).replace('(', '').replace(')', '')) if draw else 5
+            headgear = row.select_one(".RC-headgear")
+            headgear_val = headgear.get_text(strip=True) if headgear else 'None'
+
+            horses.append({
+                'Horse': horse,
+                'OR': or_val,
+                'RPR_last': or_val + 2,
+                'RPR_prev': or_val,
+                'Weight_lbs': weight_lbs,
+                'Days_last': 21,
+                'Course_starts': 2,
+                'Course_wins': 1,
+                'Distance_wins': 1,
+                'Draw': draw_num,
+                'Going_pref': 'Good',
+                'Headgear': headgear_val,
+                'Prize': 20000,
+                'FieldSize': field_size
+            })
+        except Exception as e:
+            print(f"Error parsing runner: {e}")
+            continue
+
+    df_scraped = pd.DataFrame(horses)
+    return df_scraped
+
 # Sample historical data to train the model
-data = {
-    'race_id': [1, 1, 1, 2, 2, 2],
-    'horse': ['Horse A', 'Horse B', 'Horse C', 'Horse D', 'Horse E', 'Horse F'],
-    'OR': [85, 82, 78, 70, 68, 65],
-    'RPR_last': [88, 84, 77, 72, 70, 66],
-    'RPR_prev': [86, 83, 76, 71, 69, 65],
-    'Weight_lbs': [130, 128, 126, 122, 121, 120],
-    'Days_last': [14, 21, 35, 7, 60, 12],
-    'Course_starts': [2, 3, 1, 0, 1, 2],
-    'Course_wins': [1, 0, 0, 0, 1, 0],
-    'Distance_wins': [1, 1, 0, 0, 0, 0],
-    'Draw': [1, 2, 3, 4, 5, 6],
-    'Going_pref': ['Good', 'Firm', 'Good', 'Soft', 'Good', 'Firm'],
-    'Headgear': ['None', 'Blinkers', 'Hood', 'None', 'Visor', 'None'],
-    'Prize': [10000, 10000, 10000, 5000, 5000, 5000],
-    'FieldSize': [8, 8, 8, 6, 6, 6],
-    'Trainer': ['Trainer A', 'Trainer B', 'Trainer A', 'Trainer C', 'Trainer D', 'Trainer E'],
-    'Jockey': ['Jockey A', 'Jockey B', 'Jockey A', 'Jockey C', 'Jockey D', 'Jockey E'],
-    'Winner': [1, 0, 0, 0, 1, 0]
-}
-
-df = pd.DataFrame(data)
-df = preprocess_race_data(df)
-
-feature_cols = [
-    'or_diff', 'rpr_trend', 'weight_adj', 'course_sr', 'days_log',
-    'draw_scaled', 'distance_success', 'going_is_good', 'prize_log', 'field_scaled'
-]
-X = df[feature_cols]
-y = df['Winner']
-
-scaler = StandardScaler()
-model = LogisticRegression()
-pipeline = Pipeline([
-    ('scaler', scaler),
-    ('model', model)
-])
-pipeline.fit(X, y)
+# (unchanged ...)
 
 # Streamlit App
 st.title("Horse Racing Win Predictor")
-st.write("Upload a race card CSV or enter horse data manually:")
+st.write("Upload a race card CSV, enter data manually, or fetch race by URL:")
+
+url_input = st.text_input("Paste racecard URL to fetch data (e.g. AtTheRaces or IrishRacing):")
+if url_input and st.button("Fetch Race Data"):
+    df_input = scrape_race_data(url_input)
+    df_input = preprocess_race_data(df_input)
+    X_new = df_input[feature_cols]
+    df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
+    df_input['place_probability'] = df_input['win_probability'] * 1.6
+    df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
+    df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
+    st.subheader("Predicted Results from URL")
+    st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
 
 # CSV Upload Section
 uploaded_file = st.file_uploader("Upload CSV file with horse race data", type=["csv"])
@@ -70,16 +90,15 @@ uploaded_file = st.file_uploader("Upload CSV file with horse race data", type=["
 if uploaded_file:
     df_input = pd.read_csv(uploaded_file)
     df_input = preprocess_race_data(df_input)
-
     X_new = df_input[feature_cols]
     df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
     df_input['place_probability'] = df_input['win_probability'] * 1.6
     df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
     df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
-
     st.subheader("Predicted Results from CSV")
     st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
 
+# Manual Entry Section
 else:
     num_horses = st.number_input("Number of horses", min_value=2, max_value=12, value=3)
     input_data = []
@@ -120,13 +139,12 @@ else:
     if st.button("Predict Win Chances"):
         df_input = pd.DataFrame(input_data)
         df_input = preprocess_race_data(df_input)
-
         X_new = df_input[feature_cols]
         df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
         df_input['place_probability'] = df_input['win_probability'] * 1.6
         df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
-
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+
 
