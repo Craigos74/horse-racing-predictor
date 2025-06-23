@@ -34,12 +34,11 @@ def scrape_race_data(url):
         try:
             horse = row.select_one(".RC-runnerName").get_text(strip=True)
             or_tags = row.select(".RC-horseInfo span")
-or_val = 75
-for span in or_tags:
-    if 'OR' in span.get_text():
-        or_val = int(span.get_text().split()[-1])
-        break
-            or_val = int(or_tag.get_text(strip=True).split()[-1]) if or_tag else 75
+            or_val = 75
+            for span in or_tags:
+                if 'OR' in span.get_text():
+                    or_val = int(span.get_text().split()[-1])
+                    break
             weight = row.select_one(".RC-runnerWgt")
             weight_lbs = int(weight.get_text(strip=True).split()[0]) if weight else 126
             draw = row.select_one(".RC-runnerDraw")
@@ -187,5 +186,6 @@ else:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+
 
 
