@@ -130,6 +130,7 @@ if url_input and st.button("Fetch Race Data"):
         df_input = preprocess_race_data(df_input)
     else:
         df_input = preprocess_race_data(df_input)
+    X_new = pd.DataFrame()
     if not df_input.empty:
         missing_features = [col for col in feature_cols if col not in df_input.columns]
         if missing_features:
@@ -148,6 +149,8 @@ if url_input and st.button("Fetch Race Data"):
     df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
     st.subheader("Predicted Results from URL")
     st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+else:
+    st.error("Race data could not be processed due to missing or invalid features.")
 
 # CSV Upload Section
 uploaded_file = st.file_uploader("Upload CSV file with horse race data", type=["csv"])
@@ -211,7 +214,6 @@ else:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
-
 
 
 
