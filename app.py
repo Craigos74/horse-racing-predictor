@@ -141,15 +141,16 @@ if url_input and url_fetch:
         except Exception as e:
             st.error(f"Error processing fallback race data: {e}")
             df_input = pd.DataFrame()
-                                    else:
+
+        # No else block needed here as data already processed above
             try:
-                df_input = preprocess_race_data(df_input)
+            df_input = preprocess_race_data(df_input)
             st.success("Race data processed successfully.")
             st.write("Preview of processed data:")
             st.dataframe(df_input.head())
                     except Exception as e:
-                st.error(f"Error preprocessing race data: {e}")
-                df_input = pd.DataFrame()
+            st.error(f"Error preprocessing race data: {e}")
+            df_input = pd.DataFrame()
 
                                         if not df_input.empty:
                 missing_features = [col for col in feature_cols if col not in df_input.columns]
