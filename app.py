@@ -150,7 +150,7 @@ else:
 # CSV Upload Section
 uploaded_file = st.file_uploader("Upload CSV file with horse race data", type=["csv"])
 
-if uploaded_file:
+elif uploaded_file:
     df_input = pd.read_csv(uploaded_file)
     df_input = preprocess_race_data(df_input)
     X_new = df_input[feature_cols]
@@ -162,7 +162,7 @@ if uploaded_file:
     st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
 
 # Manual Entry Section
-else:
+elif not url_input:
     num_horses = st.number_input("Number of horses", min_value=2, max_value=12, value=3)
     input_data = []
     for i in range(num_horses):
