@@ -122,8 +122,8 @@ if url_input and url_fetch:
     else:
         required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
         if not required_cols.issubset(df_input.columns):
-        st.warning("Some fields are missing. Applying fallback default values.")
-        default_val = 1  # general fallback default
+            st.warning("Some fields are missing. Applying fallback default values.")
+            default_val = 1  # general fallback default
         for col in required_cols:
             if col not in df_input.columns:
                 if 'OR' in col or 'RPR' in col:
@@ -147,8 +147,8 @@ if url_input and url_fetch:
         except Exception as e:
             st.error(f"Error processing fallback race data: {e}")
             df_input = pd.DataFrame()
-            else:
-        try:
+                    else:
+            try:
             df_input = preprocess_race_data(df_input)
             st.success("Race data processed successfully.")
             st.write("Preview of processed data:")
@@ -157,8 +157,8 @@ if url_input and url_fetch:
             st.error(f"Error preprocessing race data: {e}")
             df_input = pd.DataFrame()
 
-        if not df_input.empty:
-        missing_features = [col for col in feature_cols if col not in df_input.columns]
+                if not df_input.empty:
+            missing_features = [col for col in feature_cols if col not in df_input.columns]
         if missing_features:
             st.error(f"Missing features in data: {missing_features}. Prediction skipped.")
         else:
