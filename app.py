@@ -20,6 +20,10 @@ data = {
     'Draw': [1, 2, 3, 4, 5, 6],
     'Going_pref': ['Good', 'Firm', 'Good', 'Soft', 'Good', 'Firm'],
     'Headgear': ['None', 'Blinkers', 'Hood', 'None', 'Visor', 'None'],
+    'Prize': [10000, 10000, 10000, 5000, 5000, 5000],
+    'FieldSize': [8, 8, 8, 6, 6, 6],
+    'Trainer': ['Trainer A', 'Trainer B', 'Trainer A', 'Trainer C', 'Trainer D', 'Trainer E'],
+    'Jockey': ['Jockey A', 'Jockey B', 'Jockey A', 'Jockey C', 'Jockey D', 'Jockey E'],
     'Winner': [1, 0, 0, 0, 1, 0]
 }
 
@@ -33,8 +37,13 @@ df['days_log'] = np.log1p(df['Days_last'])
 df['draw_scaled'] = (df['Draw'] - df['Draw'].mean()) / df['Draw'].std()
 df['distance_success'] = df['Distance_wins'] / (df['Distance_wins'] + 1)
 df['going_is_good'] = (df['Going_pref'] == 'Good').astype(int)
+df['prize_log'] = np.log1p(df['Prize'])
+df['field_scaled'] = df['FieldSize'] / df['FieldSize'].max()
 
-feature_cols = ['or_diff', 'rpr_trend', 'weight_adj', 'course_sr', 'days_log', 'draw_scaled', 'distance_success', 'going_is_good']
+feature_cols = [
+    'or_diff', 'rpr_trend', 'weight_adj', 'course_sr', 'days_log',
+    'draw_scaled', 'distance_success', 'going_is_good', 'prize_log', 'field_scaled'
+]
 X = df[feature_cols]
 y = df['Winner']
 
@@ -64,6 +73,8 @@ if uploaded_file:
     df_input['draw_scaled'] = (df_input['Draw'] - df_input['Draw'].mean()) / df_input['Draw'].std()
     df_input['distance_success'] = df_input['Distance_wins'] / (df_input['Distance_wins'] + 1)
     df_input['going_is_good'] = (df_input['Going_pref'] == 'Good').astype(int)
+    df_input['prize_log'] = np.log1p(df_input['Prize'])
+    df_input['field_scaled'] = df_input['FieldSize'] / df_input['FieldSize'].max()
 
     X_new = df_input[feature_cols]
     df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
@@ -91,6 +102,8 @@ else:
         draw = st.number_input(f"Draw (Stall) - {horse}", key=f"draw_{i}")
         going_pref = st.selectbox(f"Going Preference - {horse}", ["Good", "Firm", "Soft", "Heavy"], key=f"going_{i}")
         headgear = st.text_input(f"Headgear - {horse}", key=f"gear_{i}")
+        prize = st.number_input(f"Prize Money - {horse}", key=f"prize_{i}")
+        field_size = st.number_input(f"Field Size - {horse}", key=f"field_{i}")
 
         input_data.append({
             'Horse': horse,
@@ -104,7 +117,9 @@ else:
             'Distance_wins': dist_wins,
             'Draw': draw,
             'Going_pref': going_pref,
-            'Headgear': headgear
+            'Headgear': headgear,
+            'Prize': prize,
+            'FieldSize': field_size
         })
 
     if st.button("Predict Win Chances"):
@@ -118,6 +133,8 @@ else:
         df_input['draw_scaled'] = (df_input['Draw'] - df_input['Draw'].mean()) / df_input['Draw'].std()
         df_input['distance_success'] = df_input['Distance_wins'] / (df_input['Distance_wins'] + 1)
         df_input['going_is_good'] = (df_input['Going_pref'] == 'Good').astype(int)
+        df_input['prize_log'] = np.log1p(df_input['Prize'])
+        df_input['field_scaled'] = df_input['FieldSize'] / df_input['FieldSize'].max()
 
         X_new = df_input[feature_cols]
         df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
@@ -127,4 +144,5 @@ else:
 
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+
 
