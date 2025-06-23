@@ -143,21 +143,21 @@ if url_input and url_fetch:
             df_input = pd.DataFrame()
 
         # No else block needed here as data already processed above
-            try:
+        try:
             df_input = preprocess_race_data(df_input)
             st.success("Race data processed successfully.")
             st.write("Preview of processed data:")
             st.dataframe(df_input.head())
-                    except Exception as e:
+                            except Exception as e:
             st.error(f"Error preprocessing race data: {e}")
             df_input = pd.DataFrame()
 
-                                        if not df_input.empty:
-                missing_features = [col for col in feature_cols if col not in df_input.columns]
-                                        if missing_features:
-                    st.error(f"Missing features in data: {missing_features}. Prediction skipped.")
-                                        else:
-                    X_new = df_input[feature_cols]
+                                                if not df_input.empty:
+            missing_features = [col for col in feature_cols if col not in df_input.columns]
+                                                    if missing_features:
+                st.error(f"Missing features in data: {missing_features}. Prediction skipped.")
+                                                    else:
+                X_new = df_input[feature_cols]
             df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
             df_input['place_probability'] = df_input['win_probability'] * 1.6
             df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
@@ -229,6 +229,5 @@ if not url_input and not uploaded_file:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
-
 
 
