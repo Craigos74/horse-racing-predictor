@@ -117,12 +117,31 @@ if url_input and st.button("Fetch Race Data"):
     df_input = scrape_race_data(url_input)
     required_cols = {'OR', 'RPR_last', 'RPR_prev', 'Weight_lbs', 'Days_last', 'Course_starts', 'Course_wins', 'Distance_wins', 'Draw', 'Going_pref', 'Prize', 'FieldSize'}
     if not required_cols.issubset(df_input.columns):
-        st.error("Scraped data is missing some required fields. Please check the race URL or try a different one.")
-        df_input = pd.DataFrame()  # Avoid further errors
+        st.warning("Some fields are missing. Applying fallback default values.")
+        for col in required_cols:
+            if col not in df_input.columns:
+                default_val = 75 if 'OR' in col or 'RPR' in col else 1
+                if col in ['Weight_lbs']: default_val = 126
+                if col in ['Draw']: default_val = 5
+                if col in ['Going_pref']: default_val = 'Good'
+                if col in ['Prize']: default_val = 20000
+                if col in ['FieldSize']: default_val = len(df_input)
+                df_input[col] = default_val
+        df_input = preprocess_race_data(df_input)
     else:
         df_input = preprocess_race_data(df_input)
     if not df_input.empty:
-        X_new = df_input[feature_cols]
+        missing_features = [col for col in feature_cols if col not in df_input.columns]
+        if missing_features:
+            st.error(f"Missing features in data: {missing_features}. Prediction skipped.")
+        else:
+            X_new = df_input[feature_cols]
+            df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
+            df_input['place_probability'] = df_input['win_probability'] * 1.6
+            df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
+            df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
+            st.subheader("Predicted Results from URL")
+            st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
     df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
     df_input['place_probability'] = df_input['win_probability'] * 1.6
     df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
@@ -192,6 +211,7 @@ else:
         df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
         st.subheader("Predicted Results")
         st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
+
 
 
 
