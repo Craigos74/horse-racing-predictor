@@ -1,74 +1,80 @@
-def scrape_race_data(url):
-    import requests
-    from bs4 import BeautifulSoup
-    import pandas as pd
+# Pasteable clean version of your app.py (without scraper)
 
-    response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-    soup = BeautifulSoup(response.content, 'html.parser')
+import streamlit as st
+import pandas as pd
+import numpy as np
+from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 
-    runner_rows = soup.select(".RC-runnerRow")
-    horses = []
-    field_size = len(runner_rows)
+def preprocess_race_data(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df['or_diff'] = df['OR'] - df['OR'].mean()
+    df['rpr_trend'] = df['RPR_last'] - df['RPR_prev']
+    df['weight_adj'] = (df['Weight_lbs'] - 126) / 8
+    df['course_sr'] = df['Course_wins'] / df['Course_starts'].replace(0, np.nan)
+    df['course_sr'] = df['course_sr'].fillna(0)
+    df['days_log'] = np.log1p(df['Days_last'])
+    df['draw_scaled'] = (df['Draw'] - df['Draw'].mean()) / df['Draw'].std()
+    df['distance_success'] = df['Distance_wins'] / (df['Distance_wins'] + 1)
+    df['going_is_good'] = (df['Going_pref'] == 'Good').astype(int)
+    df['prize_log'] = np.log1p(df['Prize'])
+    df['field_scaled'] = df['FieldSize'] / df['FieldSize'].max()
+    return df
 
-    for row in runner_rows:
-        try:
-            # Horse name
-            name_tag = row.select_one(".RC-runnerName a, .RC-runnerName")
-            horse = name_tag.get_text(strip=True) if name_tag else "Unknown"
+sample_data = {
+    'race_id': [1, 1, 1, 2, 2, 2],
+    'horse': ['Horse A', 'Horse B', 'Horse C', 'Horse D', 'Horse E', 'Horse F'],
+    'OR': [85, 82, 78, 70, 68, 65],
+    'RPR_last': [88, 84, 77, 72, 70, 66],
+    'RPR_prev': [86, 83, 76, 71, 69, 65],
+    'Weight_lbs': [130, 128, 126, 122, 121, 120],
+    'Days_last': [14, 21, 35, 7, 60, 12],
+    'Course_starts': [2, 3, 1, 0, 1, 2],
+    'Course_wins': [1, 0, 0, 0, 1, 0],
+    'Distance_wins': [1, 1, 0, 0, 0, 0],
+    'Draw': [1, 2, 3, 4, 5, 6],
+    'Going_pref': ['Good', 'Firm', 'Good', 'Soft', 'Good', 'Firm'],
+    'Headgear': ['None', 'Blinkers', 'Hood', 'None', 'Visor', 'None'],
+    'Prize': [10000, 10000, 10000, 5000, 5000, 5000],
+    'FieldSize': [8, 8, 8, 6, 6, 6],
+    'Trainer': ['Trainer A', 'Trainer B', 'Trainer A', 'Trainer C', 'Trainer D', 'Trainer E'],
+    'Jockey': ['Jockey A', 'Jockey B', 'Jockey A', 'Jockey C', 'Jockey D', 'Jockey E'],
+    'Winner': [1, 0, 0, 0, 1, 0]
+}
 
-            # Official Rating
-            or_val = 75  # Default fallback
-            rating_tags = row.select(".RC-horseInfo span")
-            for span in rating_tags:
-                if 'OR' in span.text:
-                    try:
-                        or_val = int(span.text.split()[-1])
-                    except:
-                        pass
-                    break
+df = pd.DataFrame(sample_data)
+df = preprocess_race_data(df)
 
-            # RPR - use OR as fallback
-            rpr_last = or_val + 2
-            rpr_prev = or_val
+feature_cols = [
+    'or_diff', 'rpr_trend', 'weight_adj', 'course_sr', 'days_log',
+    'draw_scaled', 'distance_success', 'going_is_good', 'prize_log', 'field_scaled'
+]
 
-            # Weight
-            weight_tag = row.select_one(".RC-runnerWgt, .RC-horseWgt")
-            try:
-                weight_lbs = int(weight_tag.text.strip().split()[0]) if weight_tag else 126
-            except:
-                weight_lbs = 126
+X = df[feature_cols]
+y = df['Winner']
 
-            # Draw
-            draw_tag = row.select_one(".RC-runnerDraw")
-            try:
-                draw = int(draw_tag.text.strip().replace('(', '').replace(')', '')) if draw_tag else 5
-            except:
-                draw = 5
+pipeline = Pipeline([
+    ('scaler', StandardScaler()),
+    ('model', LogisticRegression())
+])
+pipeline.fit(X, y)
 
-            # Headgear
-            headgear_tag = row.select_one(".RC-runnerHeadgear, .RC-headgear")
-            headgear = headgear_tag.get_text(strip=True) if headgear_tag else "None"
+st.title("Horse Racing Win Predictor")
 
-            # Append to list
-            horses.append({
-                'Horse': horse,
-                'OR': or_val,
-                'RPR_last': rpr_last,
-                'RPR_prev': rpr_prev,
-                'Weight_lbs': weight_lbs,
-                'Days_last': 21,
-                'Course_starts': 2,
-                'Course_wins': 1,
-                'Distance_wins': 1,
-                'Draw': draw,
-                'Going_pref': 'Good',
-                'Headgear': headgear,
-                'Prize': 20000,
-                'FieldSize': field_size
-            })
+uploaded_file = st.file_uploader("Upload race card CSV", type=["csv"])
 
-        except Exception as e:
-            print(f"[Scraper Error] Failed to parse runner: {e}")
-            continue
+if uploaded_file:
+    df_input = pd.read_csv(uploaded_file)
+    df_input = preprocess_race_data(df_input)
+    X_new = df_input[feature_cols]
+    df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
+    df_input['place_probability'] = df_input['win_probability'] * 1.6
+    df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
+    df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
+    st.subheader("Predicted Results")
+    st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
 
-    return pd.DataFrame(horses)
+else:
+    st.info("Upload a CSV file to see predictions.")
+
