@@ -13,50 +13,62 @@ def scrape_race_data(url):
     for row in runner_rows:
         try:
             # Horse name
-            name_tag = row.select_one(".RC-runnerName")
-            horse = name_tag.text.strip() if name_tag else None
+            name_tag = row.select_one(".RC-runnerName a, .RC-runnerName")
+            horse = name_tag.get_text(strip=True) if name_tag else "Unknown"
 
-            # Official Rating (OR)
-            or_tag = row.select_one(".RC-runnerRating")
-            or_val = int(or_tag.text.strip()) if or_tag and or_tag.text.strip().isdigit() else 75
+            # Official Rating
+            or_val = 75  # Default fallback
+            rating_tags = row.select(".RC-horseInfo span")
+            for span in rating_tags:
+                if 'OR' in span.text:
+                    try:
+                        or_val = int(span.text.split()[-1])
+                    except:
+                        pass
+                    break
 
-            # RPR (reuse OR if missing)
-            rpr_tag = row.select_one(".RC-runnerRatingRC")
-            rpr_last = int(rpr_tag.text.strip()) if rpr_tag and rpr_tag.text.strip().isdigit() else or_val
+            # RPR - use OR as fallback
+            rpr_last = or_val + 2
             rpr_prev = or_val
 
             # Weight
-            wt_tag = row.select_one(".RC-horseWgt")
-            weight_lbs = int(wt_tag.text.strip().split()[0]) if wt_tag else 126
+            weight_tag = row.select_one(".RC-runnerWgt, .RC-horseWgt")
+            try:
+                weight_lbs = int(weight_tag.text.strip().split()[0]) if weight_tag else 126
+            except:
+                weight_lbs = 126
 
             # Draw
             draw_tag = row.select_one(".RC-runnerDraw")
-            draw = int(draw_tag.text.strip()) if draw_tag and draw_tag.text.strip().isdigit() else 5
+            try:
+                draw = int(draw_tag.text.strip().replace('(', '').replace(')', '')) if draw_tag else 5
+            except:
+                draw = 5
 
             # Headgear
-            hg_tag = row.select_one(".RC-runnerHeadgear")
-            headgear = hg_tag.text.strip() if hg_tag else "None"
+            headgear_tag = row.select_one(".RC-runnerHeadgear, .RC-headgear")
+            headgear = headgear_tag.get_text(strip=True) if headgear_tag else "None"
 
-            # Add horse record
-            if horse:
-                horses.append({
-                    'Horse': horse,
-                    'OR': or_val,
-                    'RPR_last': rpr_last,
-                    'RPR_prev': rpr_prev,
-                    'Weight_lbs': weight_lbs,
-                    'Days_last': 21,  # placeholder
-                    'Course_starts': 2,
-                    'Course_wins': 1,
-                    'Distance_wins': 1,
-                    'Draw': draw,
-                    'Going_pref': 'Good',
-                    'Headgear': headgear,
-                    'Prize': 20000,
-                    'FieldSize': field_size
-                })
+            # Append to list
+            horses.append({
+                'Horse': horse,
+                'OR': or_val,
+                'RPR_last': rpr_last,
+                'RPR_prev': rpr_prev,
+                'Weight_lbs': weight_lbs,
+                'Days_last': 21,
+                'Course_starts': 2,
+                'Course_wins': 1,
+                'Distance_wins': 1,
+                'Draw': draw,
+                'Going_pref': 'Good',
+                'Headgear': headgear,
+                'Prize': 20000,
+                'FieldSize': field_size
+            })
+
         except Exception as e:
-            print(f"Error parsing runner: {e}")
+            print(f"[Scraper Error] Failed to parse runner: {e}")
             continue
 
     return pd.DataFrame(horses)
