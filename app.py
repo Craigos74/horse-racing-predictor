@@ -1,4 +1,4 @@
-# Pasteable clean version of your app.py (without scraper)
+# app.py
 
 import streamlit as st
 import pandas as pd
@@ -7,6 +7,9 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 
+# -------------------------
+# Preprocessing Function
+# -------------------------
 def preprocess_race_data(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df['or_diff'] = df['OR'] - df['OR'].mean()
@@ -22,6 +25,9 @@ def preprocess_race_data(df: pd.DataFrame) -> pd.DataFrame:
     df['field_scaled'] = df['FieldSize'] / df['FieldSize'].max()
     return df
 
+# -------------------------
+# Sample Training Data
+# -------------------------
 sample_data = {
     'race_id': [1, 1, 1, 2, 2, 2],
     'horse': ['Horse A', 'Horse B', 'Horse C', 'Horse D', 'Horse E', 'Horse F'],
@@ -43,38 +49,54 @@ sample_data = {
     'Winner': [1, 0, 0, 0, 1, 0]
 }
 
-df = pd.DataFrame(sample_data)
-df = preprocess_race_data(df)
+df_sample = pd.DataFrame(sample_data)
+df_sample = preprocess_race_data(df_sample)
 
+# -------------------------
+# Model Training
+# -------------------------
 feature_cols = [
     'or_diff', 'rpr_trend', 'weight_adj', 'course_sr', 'days_log',
     'draw_scaled', 'distance_success', 'going_is_good', 'prize_log', 'field_scaled'
 ]
 
-X = df[feature_cols]
-y = df['Winner']
+X_train = df_sample[feature_cols]
+y_train = df_sample['Winner']
 
 pipeline = Pipeline([
     ('scaler', StandardScaler()),
     ('model', LogisticRegression())
 ])
-pipeline.fit(X, y)
+pipeline.fit(X_train, y_train)
 
-st.title("Horse Racing Win Predictor")
-
-uploaded_file = st.file_uploader("Upload race card CSV", type=["csv"])
+# -------------------------
+# Streamlit UI
+# -------------------------
+st.title("🏇 Horse Racing Win Probability Predictor")
+uploaded_file = st.file_uploader("📤 Upload a race card CSV", type=["csv"])
 
 if uploaded_file:
     df_input = pd.read_csv(uploaded_file)
     df_input = preprocess_race_data(df_input)
-    X_new = df_input[feature_cols]
+
+    # Handle missing or non-numeric data
+    X_new = df_input[feature_cols].copy()
+    X_new = X_new.fillna(0)
+    X_new = X_new.apply(pd.to_numeric, errors='coerce').fillna(0)
+
+    # Predict
     df_input['win_probability'] = pipeline.predict_proba(X_new)[:, 1]
     df_input['place_probability'] = df_input['win_probability'] * 1.6
     df_input['win_prob_%'] = (df_input['win_probability'] * 100).round(1).astype(str) + '%'
     df_input['place_prob_%'] = (df_input['place_probability'].clip(upper=1) * 100).round(1).astype(str) + '%'
-    st.subheader("Predicted Results")
-    st.dataframe(df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']].sort_values(by='win_probability', ascending=False))
 
+    # Display Results
+    st.subheader("📊 Predicted Results")
+    st.dataframe(
+        df_input[['Horse', 'win_probability', 'win_prob_%', 'place_probability', 'place_prob_%']]
+        .sort_values(by='win_probability', ascending=False)
+        .reset_index(drop=True)
+    )
 else:
-    st.info("Upload a CSV file to see predictions.")
+    st.info("👆 Upload a CSV race card file to get started.")
 
